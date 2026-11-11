@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Remove the robots line below when the page goes public. -->
+<meta name="robots" content="noindex, nofollow">
+<title>Analyzing and Improving FlowMap Distillation of Autoregressive Video Models</title>
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/figure.css">
+<link rel="stylesheet" href="css/videos.css">
+<link rel="stylesheet" href="css/bibtex.css">
+<link rel="stylesheet" href="css/diagram.css">
+<link rel="stylesheet" href="css/site.css">
+<link rel="stylesheet" href="css/results.css">
+</head>
+<body id="top">
+
+<!-- Delete this one element before publication. -->
+<div id="internal-banner" role="note">Internal preview, do not share</div>
+
+<nav class="top" aria-label="Sections">
+  <span class="nav">
+    <a href="#top" aria-current="true">Overview</a>
+    <a href="#quality">Teaser</a>
+    <a href="#background">Background</a>
+    <a href="#method">Method</a>
+    <a href="#experiments">Experiments</a>
+    <a href="#bibtex">BibTeX</a>
+  </span>
+</nav>
+
+<header class="hero">
+  <div class="hero-grid">
+    <div class="hero-main">
+      <h1>Analyzing and Improving FlowMap Distillation of Autoregressive Video Models</h1>
+      <p class="authors">Anonymous Authors</p>
+      <ul class="links">
+        <li><span>Paper, soon</span></li>
+        <li><span>arXiv, soon</span></li>
+        <li><span>Code, soon</span></li>
+        <li><a href="#bibtex">BibTeX</a></li>
+      </ul>
+    </div>
+    <aside class="tldr" aria-labelledby="tldr-h">
+      <h2 id="tldr-h">TL;DR</h2>
+      <p class="lead">Few-step autoregressive video models do not need DMD. With two guidance terms on the teacher, pure FlowMap distillation matches DMD students on VBench with substantially higher sample diversity.</p>
+      <p>Existing few-step AR video models rely on distribution matching distillation (DMD), which reduces sample diversity and requires a large bidirectional teacher. We analyze what limits AR FlowMap distillation and add two guidance mechanisms: anti-drifting guidance corrects drifted student rollouts, and motion-aware guidance makes motion easier for the student to learn. The approach works across π-Flow, MeanFlow and consistency distillation.</p>
+    </aside>
+  </div>
+</header>
+
+<main>
+
+<section id="quality" class="sec">
+  <div class="results-grid">
+    <article class="result teaser-row" id="res-hq" data-span="full">
+      <h2>Teaser</h2>
+      <h3 class="row-h">High quality</h3>
+      <p class="desc lead-d">Our AR FlowMap students generate high-quality videos.</p>
+      <div class="slot" data-slot="hq" data-select></div>
+    </article>
+    <article class="result teaser-row" id="res-quality" data-span="full">
+      <h3 class="row-h">Long videos</h3>
+      <p class="desc lead-d">Our AR FlowMap students generate long videos without drifting.</p>
+      <div class="slot" data-slot="quality" data-select></div>
+    </article>
+    <article class="result teaser-row" id="res-diversity" data-span="full">
+      <h3 class="row-h">Diversity</h3>
+      <p class="desc lead-d">Our AR FlowMap students generate diverse videos.</p>
+      <p class="desc">Four seeds of one prompt for each model.</p>
+      <div class="slot" data-slot="diversity" data-select></div>
+    </article>
+  </div>
+</section>
+
+<section id="background" class="sec">
+  <details class="toggle-sec" id="bg-toggle">
+  <summary><h2>Background: AR FlowMap distillation vs. DMD</h2></summary>
+  <div class="text">
+    <p>A few-step AR student generates a video chunk by chunk. FlowMap distillation trains it to follow the denoising flow of the AR teacher, in two stages that differ only in where the history comes from. The previous recipe, SF-DMD, instead trains the student's rollout with a large bidirectional teacher.</p>
+  </div>
+  <figure class="figure stepfig" id="fig-background" aria-labelledby="fig-background-h"
+          data-labels="AR FlowMap: teacher-forcing|AR FlowMap: self-forcing|DMD: self-forcing">
+    <h3 id="fig-background-h" class="sr-only">AR FlowMap distillation and SF-DMD</h3>
+    <div class="fig-scroll" tabindex="0" role="group" aria-label="AR FlowMap distillation and SF-DMD. Click, or use the left and right arrow keys, to step through.">
+      <svg class="dg" data-diagram="background" viewBox="0 0 1240 432" role="img" aria-label="Diagram: teacher on top, chunks in the middle, student below. (a) Teacher-forcing: real history feeds both, and the student maps the noisy chunk to the last chunk with its FlowMap against the AR teacher. (b) Self-forcing: the student generates the history chunk by chunk. (c) SF-DMD: the student rolls out every chunk and a bidirectional teacher supervises all of them with DMD"></svg>
+    </div>
+    <div class="step-texts">
+      <p data-step="-1">Use the arrows or click the figure to step through.</p>
+      <p data-step="0">Teacher-forcing (Stage 1): the history is real video and goes to both models. Given it and the noisy chunk \(x^4_t\), the student jumps to \(\hat{x}^4_0\) with its FlowMap, and the AR teacher on the same history gives the target.</p>
+      <p data-step="1">Self-forcing (Stage 2): the student generates the history itself, chunk by chunk as at inference, each chunk going back into the model. The AR teacher then sees the same rollout. A drifted rollout therefore gives a drifted target.</p>
+      <p data-step="2">DMD with self-forcing (SF-DMD): the student rolls out the whole video chunk by chunk, and a bidirectional teacher supervises every chunk at once with DMD. This penalizes drift over the sequence, but DMD reduces diversity, and the large bidirectional teacher does not share the causal structure of AR generation.</p>
+    </div>
+  </figure>
+  </details>
+</section>
+
+<section id="method" class="sec">
+  <div class="text">
+    <h2>Method</h2>
+    <p>We analyze what limits AR FlowMap distillation and find two problems. During self-forcing, the student's rollouts drift and the AR teacher cannot correct them. Moving regions have a complex velocity field that a few-step student finds hard to learn. We address each with a guidance mechanism on the teacher, and plug the guided velocity directly into the FlowMap objective (π-Flow, MeanFlow or dCM).</p>
+  </div>
+
+  <!-- Anti-drifting guidance: the paper figure (sections/02_related_work.tex) drawn by js/diagrams.js. -->
+  <figure class="figure stepfig" id="fig-antidrift" aria-labelledby="fig-antidrift-h"
+          data-labels="Drifting rollout|Teacher on rollout|Anti-drifting guidance|Teacher given a student rollout">
+    <h3 id="fig-antidrift-h">Anti-drifting guidance</h3>
+    <div class="fig-scroll" tabindex="0" role="group" aria-label="Anti-drifting guidance. Click, or use the left and right arrow keys, to step through.">
+      <svg class="dg" data-diagram="antidrift" viewBox="0 0 1240 474" role="img" aria-label="Diagram: (a) the AR teacher on a drifted student rollout keeps the offset from the teacher's rollout, (b) anti-drifting guidance steers the transition back toward the data distribution, (c) the next chunk generated from a drifted rollout by the teacher and by the guided teacher"></svg>
+    </div>
+    <div class="step-texts">
+      <p data-step="-1">Use the arrows or click the figure to step through. Shading marks high-density data regions.</p>
+      <p data-step="0">Errors accumulate over chunks: the student's rollout \((\hat{x}^1, \hat{x}^2, \dots)\) drifts away from the teacher's rollout and the data region.</p>
+      <p data-step="1">On the drifted rollout, the AR teacher \(v_\phi\) fails to correct the drift and retains the offset from the teacher's rollout, so the student is supervised toward a drifted target.</p>
+      <p data-step="2">Anti-drifting guidance steers the transition back toward the data: \(v^\star = v_\phi + (\gamma - 1)(v_\phi - v_\psi)\). The drift model \(v_\psi\) starts from the teacher and is trained with flow matching on the student's own rollouts, \(n\) steps per student update.</p>
+      <p data-step="3">Next chunk generated from a drifted rollout without (Teacher) and with (Guided Teacher) anti-drifting guidance.</p>
+    </div>
+  </figure>
+
+  <figure class="figure stepfig" id="fig-motion" aria-labelledby="fig-motion-h"
+          data-labels="Skip-layer guidance|Uncertainty-weighted soft skip|Training the uncertainty head">
+    <h3 id="fig-motion-h">Motion-aware guidance</h3>
+    <div class="fig-scroll" tabindex="0" role="group" aria-label="Motion-aware guidance. Click, or use the left and right arrow keys, to step through.">
+      <svg class="dg" data-diagram="motion" viewBox="0 0 1240 474" role="img" aria-label="Diagram: the teacher with a positive and a negative prompt branch, the uncertainty head on block l of the positive branch, the patch-wise soft skip at block l of the negative branch, and the head's training loss"></svg>
+    </div>
+    <div class="step-texts">
+      <p data-step="-1">Use the arrows or click the figure to step through.</p>
+      <p data-step="0">Skip-layer guidance: the negative branch \(v_\phi^-\) uses the negative prompt and skips block \(\ell\) on every patch.</p>
+      <p data-step="1">An uncertainty head predicts \(u\) for each patch. The negative branch skips block \(\ell\) only where \(u\) is large, which is where things move.</p>
+      <p data-step="2">The head is trained beforehand on the teacher's flow-matching residual, where \(\hat{u}_p\) is the predicted log-uncertainty of patch \(p\).</p>
+    </div>
+  </figure>
+
+  <details class="toggle-sec sub" id="why-motion">
+  <summary><h4>Why do FlowMap students fail to learn motion, and how does the guidance fix it?</h4></summary>
+    <div class="text">
+      <p>A FlowMap student follows the teacher's velocity field in a few long steps, which is easier when that field changes smoothly, that is, when its Lipschitz constant is small. After the first chunk, the history already fixes the static background, and only moving objects change from frame to frame. Their velocity field varies sharply, so the student blurs or distorts them.</p>
+      <p>Guidance can smooth the field, but in later chunks only the right kind does. In the first chunk, every guidance lowers the Lipschitz constant. In the second chunk, CFG raises it at larger strengths, since a stronger text prompt does not guide frame-to-frame motion. Skip-layer guidance does not use the prompt and lowers it, but saturates early because it also perturbs the static background. Motion-aware guidance applies the skip only where the teacher is uncertain, which is where things move, and gives the largest reduction.</p>
+    </div>
+    <figure class="figure" aria-labelledby="cv-cap">
+      <div class="cv-chart"></div>
+      <figcaption id="cv-cap">Approximated Lipschitz constant of the guided Causal Forcing teacher, as the percent change over the unguided teacher (lower is smoother), against the norm of the guidance term. Mean over 64 clips.</figcaption>
+    </figure>
+  </details>
+
+</section>
+
+<!-- Experiments: the layout of the previous project page (docs/index.html), numbers from the current paper tables. -->
+<section id="experiments" class="sec">
+  <div class="text">
+    <h2>Experiments</h2>
+    <p>We distill the chunk-wise AR teachers of Causal-rCM and Causal Forcing (causal Wan2.1-T2V-1.3B). Every student generates each chunk in 4 NFE, without guidance at inference. VBench scores are five-seed means over 946 prompts. Diversity is the mean pairwise feature distance among the five videos of a prompt.</p>
+  </div>
+
+  <div class="text">
+    <p>Each guidance term fixes one failure of FlowMap distillation: anti-drifting guidance stops the 30 s drift, and motion-aware guidance stops the motion breakdown.</p>
+  </div>
+  <figure class="figure f1 f1-two" aria-labelledby="f1-cap">
+    <div class="f1-cols">
+      <div class="f1-legend"><span><i class="sw base"></i>FlowMap</span><span><i class="sw s1"></i>FlowMap + Ours</span><span><i class="sw dash"></i>DMD</span></div>
+      <div class="f1-panel">
+        <h4>(a) Reduce drifting</h4>
+        <div class="f1-video slot" data-slot="abl_antidrift"></div>
+        <div class="f1-charts"><div class="chart" data-chart="f1-drift"></div><div class="chart" data-chart="f1-div"></div></div>
+      </div>
+      <div class="f1-panel">
+        <h4>(b) Better motion</h4>
+        <div class="f1-video slot" data-slot="abl_motion"></div>
+        <div class="f1-charts"><div class="chart" data-chart="f1-total"></div><div class="chart" data-chart="f1-quality"></div></div>
+      </div>
+    </div>
+    <figcaption id="f1-cap"><b>Figure 1.</b> 4-step FlowMap students (π-Flow) without and with our guidance; both videos in a panel share the prompt and noise. (a) In self-forcing, anti-drifting guidance suppresses the 30 s drift while keeping 5 s diversity. Drifting is the drop of imaging quality over 30 s (|ΔIQ|), and diversity the V-JEPA 2 cosine distance. (b) In teacher-forcing, motion-aware guidance avoids the motion breakdown of standard CFG and raises 5 s VBench. Charts: Causal-rCM init; the dashed line is the DMD student from the same init.</figcaption>
+  </figure>
+
+
+  <h3 class="exp-h" id="exp-main">Main results</h3>
+  <details class="toggle-sec sub" id="exp-t5">
+  <summary><h4>5 s video generation</h4></summary>
+    <div class="text">
+      <p>On 5 s videos, our π-Flow students match the DMD students, which are distilled from 14B teachers, on VBench (84.87 and 84.76) without any DMD stage. They also have the highest Quality scores and are more diverse across seeds.</p>
+    </div>
+    <figure class="figure table-fig" aria-labelledby="tab-main-cap">
+      <div class="table-scroll" tabindex="0">
+      <table class="res" data-rank-from="4">
+        <thead>
+          <tr><th rowspan="2">Method</th><th rowspan="2">Type</th><th rowspan="2">Teacher</th><th rowspan="2">NFE</th><th colspan="4">VBench ↑</th><th colspan="2">V-JEPA 2 ↑</th><th colspan="2">VideoMAE V2 ↑</th></tr>
+          <tr><th>Total</th><th>Quality</th><th>Semantic</th><th>Dynamic</th><th>Cos</th><th>L2</th><th>Cos</th><th>L2</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Self Forcing<sup>†</sup></td><td>DMD</td><td>14B</td><td>4</td><td>84.22</td><td>84.83</td><td>81.81</td><td>66.1</td><td>0.0555</td><td>21.5</td><td>0.0117</td><td>2.50</td></tr>
+          <tr class="grp"><td colspan="12">Causal-rCM init</td></tr>
+          <tr class="ref"><td>AR teacher, CFG</td><td>–</td><td>–</td><td>32×2</td><td>84.38</td><td>84.85</td><td>82.47</td><td>65.0</td><td>0.0624</td><td>23.2</td><td>0.0128</td><td>2.60</td></tr>
+          <tr><td>Causal-rCM<sup>†</sup></td><td>DMD</td><td>14B<sup>AR</sup>, 14B</td><td>4</td><td>84.92</td><td>85.44</td><td>82.82</td><td>81.1</td><td>0.0666</td><td>23.6</td><td>0.0166</td><td>2.95</td></tr>
+          <tr><td>Causal-rCM, TF-sCM<sup>†</sup></td><td>FlowMap</td><td>14B<sup>AR</sup></td><td>4</td><td>83.78</td><td>84.49</td><td>80.92</td><td>67.5</td><td>0.0789</td><td>26.2</td><td>0.0182</td><td>3.13</td></tr>
+          <tr class="ours"><td>Ours (π-Flow)</td><td>FlowMap</td><td>1.3B<sup>AR</sup></td><td>4</td><td>84.87</td><td>85.76</td><td>81.29</td><td>71.4</td><td>0.0735</td><td>25.2</td><td>0.0143</td><td>2.77</td></tr>
+          <tr class="ours"><td>Ours (MeanFlow)</td><td>FlowMap</td><td>1.3B<sup>AR</sup></td><td>4</td><td>84.66</td><td>85.19</td><td>82.55</td><td>65.8</td><td>0.0656</td><td>23.7</td><td>0.0126</td><td>2.58</td></tr>
+          <tr class="ours"><td>Ours (dCM)</td><td>FlowMap</td><td>1.3B<sup>AR</sup></td><td>4</td><td>84.54</td><td>85.20</td><td>81.91</td><td>68.3</td><td>0.0634</td><td>23.4</td><td>0.0122</td><td>2.56</td></tr>
+          <tr class="grp"><td colspan="12">Causal Forcing init</td></tr>
+          <tr class="ref"><td>AR teacher, CFG</td><td>–</td><td>–</td><td>32×2</td><td>84.46</td><td>85.11</td><td>81.86</td><td>77.8</td><td>0.0882</td><td>26.9</td><td>0.0236</td><td>3.50</td></tr>
+          <tr><td>Causal Forcing<sup>†</sup></td><td>DMD</td><td>14B</td><td>4</td><td>84.74</td><td>85.41</td><td>82.02</td><td>83.9</td><td>0.0745</td><td>24.4</td><td>0.0198</td><td>3.24</td></tr>
+          <tr class="ours"><td>Ours (π-Flow)</td><td>FlowMap</td><td>1.3B<sup>AR</sup></td><td>4</td><td>84.76</td><td>85.83</td><td>80.46</td><td>88.3</td><td>0.0964</td><td>27.8</td><td>0.0281</td><td>3.81</td></tr>
+          <tr class="ours"><td>Ours (MeanFlow)</td><td>FlowMap</td><td>1.3B<sup>AR</sup></td><td>4</td><td>84.20</td><td>84.80</td><td>81.80</td><td>69.7</td><td>0.0842</td><td>26.3</td><td>0.0216</td><td>3.32</td></tr>
+          <tr class="ours"><td>Ours (dCM)</td><td>FlowMap</td><td>1.3B<sup>AR</sup></td><td>4</td><td>83.70</td><td>84.55</td><td>80.32</td><td>69.7</td><td>0.0875</td><td>26.6</td><td>0.0241</td><td>3.54</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <figcaption id="tab-main-cap"><b>Table 1.</b> 4-NFE chunk-wise AR students on Wan2.1-1.3B. Type is the final-stage objective, and Teacher is the model distilled from (<sup>AR</sup>: causal). <sup>†</sup>Official checkpoint. Within each block, darker blue means a higher rank; the AR teachers are shown in gray and not ranked.</figcaption>
+    </figure>
+  
+  </details>
+  <details class="toggle-sec sub" id="exp-t30">
+  <summary><h4>Long video generation</h4></summary>
+    <div class="text">
+      <p>On 30 s videos with the Causal-rCM teacher, all three of our students lose less imaging quality over 30 s than the DMD student, nearly halving its drop (ΔIQ). The 30 s videos are at the top of the page.</p>
+    </div>
+    <figure class="figure table-fig narrow" aria-labelledby="tab-long-cap">
+      <div class="table-scroll" tabindex="0">
+      <table class="res" data-rank-from="1">
+        <thead>
+          <tr><th>Method</th><th>DD ↑</th><th>AQ ↑</th><th>IQ ↑</th><th>ΔIQ ↑</th><th>ΔAQ ↑</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Self Forcing<sup>†</sup></td><td>60.8</td><td>61.18</td><td>69.30</td><td>−0.76</td><td>−2.00</td></tr>
+          <tr class="grp"><td colspan="6">Causal-rCM init</td></tr>
+          <tr><td>Causal-rCM<sup>†</sup></td><td>65.6</td><td>61.41</td><td>65.92</td><td>−3.28</td><td>−4.06</td></tr>
+          <tr><td>Causal-rCM, TF-sCM<sup>†</sup></td><td>48.6</td><td>58.80</td><td>65.29</td><td>−3.10</td><td>−5.08</td></tr>
+          <tr class="ours"><td>Ours (π-Flow)</td><td>41.1</td><td>62.13</td><td>67.41</td><td>−1.64</td><td>−3.83</td></tr>
+          <tr class="ours"><td>Ours (MeanFlow)</td><td>41.7</td><td>61.81</td><td>67.19</td><td>−1.95</td><td>−4.12</td></tr>
+          <tr class="ours"><td>Ours (dCM)</td><td>41.3</td><td>60.27</td><td>68.25</td><td>−1.97</td><td>−4.01</td></tr>
+          <tr class="grp"><td colspan="6">Causal Forcing init</td></tr>
+          <tr><td>Causal Forcing<sup>†</sup></td><td>81.7</td><td>58.71</td><td>68.92</td><td>−1.44</td><td>−5.59</td></tr>
+          <tr class="ours"><td>Ours (π-Flow)</td><td>82.1</td><td>57.92</td><td>64.62</td><td>−4.94</td><td>−6.80</td></tr>
+          <tr class="ours"><td>Ours (dCM)</td><td>49.4</td><td>54.89</td><td>62.04</td><td>−9.01</td><td>−11.56</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <figcaption id="tab-long-cap"><b>Table 2.</b> VBench-Long on 30 s videos, five-seed means over 128 MovieGen prompts (KV-cache pattern of Deep Forcing). DD: dynamic degree; AQ and IQ: aesthetic and imaging quality; ΔIQ and ΔAQ: the last three of 16 clips minus the first three (closer to 0 is better). Within each block, darker blue means a higher rank.</figcaption>
+    </figure>
+  
+  </details>
+
+  <h3 class="exp-h" id="exp-abl-h">Ablation study</h3>
+  <details class="toggle-sec sub" id="exp-ta1">
+  <summary><h4><span class="star" aria-hidden="true">★</span>Anti-drifting guidance does not hurt diversity</h4></summary>
+    <div class="text">
+      <p>Unlike the reverse KL of DMD on \(x_0\), anti-drifting guidance does not reduce diversity in practice: with it, the student is more diverse across seeds and also scores higher on VBench.</p>
+    </div>
+    <figure class="figure f1 f1-dn" aria-labelledby="dn-cap">
+      <div class="f1-legend"><span><i class="sw base"></i>w/o anti-drifting guidance</span><span><i class="sw s1"></i>w/ anti-drifting guidance</span></div>
+      <div class="f1-row">
+        <div class="f1-video slot" data-slot="abl_div" data-select></div>
+        <div class="f1-charts"><div class="chart" data-chart="dn-vjepa"></div><div class="chart" data-chart="dn-mae"></div><div class="chart" data-chart="dn-vbench"></div></div>
+      </div>
+      <figcaption id="dn-cap"><b>Figure 2.</b> π-Flow after Stage 2, Causal Forcing init, without (\(\gamma = 1\)) and with anti-drifting guidance (\(n = 5\), \(\gamma = 5\)). Each clip shows seeds 0 to 3 of one prompt in a 2 × 2 grid. Diversity is the mean pairwise cosine distance (× 100) among five seeds, with V-JEPA 2 and VideoMAE V2 features.</figcaption>
+    </figure>
+  
+  </details>
+  <details class="toggle-sec sub" id="exp-ta2">
+  <summary><h4>Motion-aware guidance</h4></summary>
+    <div class="text">
+      <p>Motion-aware guidance scores higher than skip-layer guidance with any fixed weight, including the weight that matches its mean.</p>
+    </div>
+    <figure class="figure table-fig narrow" aria-labelledby="tab-s1-cap">
+      <div class="table-scroll" tabindex="0">
+      <table class="res" data-rank-from="1">
+        <thead><tr><th>Teacher guidance, Stage 1</th><th>VBench ↑</th></tr></thead>
+        <tbody>
+          <tr class="ours"><td>Motion-aware (ours)</td><td>84.01</td></tr>
+          <tr><td>Skip-layer, <span class="m">\(u = 0.61\)</span></td><td>83.69</td></tr>
+          <tr><td>CFG only</td><td>83.66</td></tr>
+          <tr><td>Skip-layer, <span class="m">\(u = 0.5\)</span></td><td>83.54</td></tr>
+          <tr><td>Skip-layer, <span class="m">\(u = 1\)</span></td><td>83.43</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <figcaption id="tab-s1-cap"><b>Table 3.</b> π-Flow after Stage 1. Skip-layer guidance skips block \(\ell\) with the same weight \(u\) on every patch; \(u = 0.61\) matches the mean weight of motion-aware guidance.</figcaption>
+    </figure>
+  
+  </details>
+  <details class="toggle-sec sub" id="exp-ta3">
+  <summary><h4>Anti-drifting guidance</h4></summary>
+    <div class="text">
+      <p>Without anti-drifting guidance, both students drift more over 30 s (ΔIQ and ΔAQ) and score lower on 5 s VBench.</p>
+    </div>
+    <figure class="figure table-fig narrow" aria-labelledby="tab-s2-cap">
+      <div class="table-scroll" tabindex="0">
+      <table class="res" data-rank-from="2">
+        <thead>
+          <tr><th rowspan="2">Method</th><th rowspan="2">Teacher guidance, Stage 2</th><th colspan="3">30 s</th><th>5 s</th></tr>
+          <tr><th>DD ↑</th><th>ΔIQ ↑</th><th>ΔAQ ↑</th><th>VBench ↑</th></tr>
+        </thead>
+        <tbody>
+          <tr class="ours"><td>π-Flow</td><td>Anti-drifting (ours)</td><td>82.1</td><td>−4.94</td><td>−6.80</td><td>84.76</td></tr>
+          <tr><td></td><td>without it</td><td>62.7</td><td>−7.79</td><td>−9.49</td><td>84.35</td></tr>
+          <tr class="ours block-start"><td>dCM</td><td>Anti-drifting (ours)</td><td>49.4</td><td>−9.01</td><td>−11.56</td><td>83.70</td></tr>
+          <tr><td></td><td>without it</td><td>39.5</td><td>−10.00</td><td>−16.51</td><td>83.59</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <figcaption id="tab-s2-cap"><b>Table 4.</b> Anti-drifting guidance in Stage 2, Causal Forcing teacher. All variants use motion-aware guidance in both stages; removing anti-drifting guidance sets \(\gamma = 1\).</figcaption>
+    </figure>
+  
+  </details>
+  <details class="toggle-sec sub" id="exp-ta0">
+  <summary><h4>Motion-aware guidance + anti-drifting guidance</h4></summary>
+    <div class="text">
+      <p>Each term alone raises VBench Total by more than 2.5 points over CFG only; with both, the student matches the DMD student.</p>
+    </div>
+    <figure class="figure chart" data-chart="ablation" aria-labelledby="chart-abl-cap">
+      <div class="chart-body"></div>
+      <figcaption id="chart-abl-cap"><b>Table 5.</b> VBench Total of the π-Flow student after Stage 2, Causal Forcing init. CFG only uses neither term in either stage; each “+” adds one term to it. The dashed line is the DMD student Causal Forcing (Table 1).</figcaption>
+    </figure>
+  </details>
+
+
+</section>
+
+<section id="bibtex" class="sec">
+  <div class="text">
+    <h2>BibTeX</h2>
+  </div>
+  <div class="bibbox">
+    <button type="button" class="copy" id="copy-bib" aria-label="Copy BibTeX">Copy</button>
+    <pre class="bib" id="bib-text">@misc{anonymous2026flowmapar,
+  title  = {Analyzing and Improving FlowMap Distillation of Autoregressive Video Models},
+  author = {Anonymous},
+  year   = {2026}
+}</pre>
+  </div>
+</section>
+
+<nav class="pager" aria-label="Page navigation">
+  <a href="#experiments"><svg class="arrow is-back" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12h15M13 6l6 6-6 6"/></svg>Experiments</a>
+  <a href="#top">Back to top<svg class="arrow up" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12h15M13 6l6 6-6 6"/></svg></a>
+</nav>
+
+</main>
+
+<script>window.MathJax = { tex: { inlineMath: [['\\(', '\\)']] }, svg: { fontCache: 'none' }, options: { enableMenu: false } };</script>
+<script src="vendor/mathjax/tex-svg.js"></script>
+<script src="media/manifest.js"></script>
+<script src="js/core.js"></script>
+<script src="figures/method/motion_paths.js"></script>
+<script src="js/diagrams.js"></script>
+<script src="js/stepfig.js"></script>
+<script src="js/videos.js"></script>
+<script src="js/results.js"></script>
+<script src="js/cvchart.js"></script>
+<script src="js/page.js"></script>
+</body>
+</html>
