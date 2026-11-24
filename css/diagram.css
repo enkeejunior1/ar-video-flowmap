@@ -1,0 +1,204 @@
+/* Method diagrams drawn by js/diagrams.js and stepped by js/stepfig.js.
+ * The diagram colors are the paper's (scripts/figures/canvas.py and export_antidrift_panels.py), so the page matches the
+ * paper figures; type, region frames and the step behavior follow the PixVid figures. */
+
+.dg {
+  --p-ink: #29343b; --p-gray: #7f8a93; --p-blue: #305f7d; --p-orange: #c85d34; --p-gt: #d9775c;
+  --p-purple: #6b4fa8; --p-blue-fill: #f1f6f9; --p-orange-fill: #fbede3;
+  width: 100%; height: auto; display: block; overflow: visible;
+}
+/* Method figures sit in a compact 860 px column so the whole figure reads in one glance. */
+:root { --fig-w: 800px; }
+.figure.stepfig { width: 100%; max-width: min(var(--fig-w), calc(100vw - 2 * var(--side-nav-room, 0px))); margin-inline: auto; position: static; left: auto; transform: none; }
+@media (max-width: 900px) { .dg { min-width: 900px; } }
+
+/* Type */
+.dg text { font-family: var(--serif); fill: var(--p-ink); }
+.dg .rt { font-weight: 500; fill: var(--faint); }
+.dg .cap { font-style: italic; fill: var(--muted); }
+.dg .cap.acc { fill: #a97c61; }
+.dg .lg { fill: var(--muted); }
+.dg .tx { color: var(--p-ink); }
+.dg .tx.blue-t { color: var(--p-blue); }
+.dg .tx.orange-t { color: var(--p-orange); }
+.dg .tx.gray-t { color: var(--p-gray); }
+.dg .tx.cap { color: var(--muted); }
+.dg .blue-t { fill: var(--p-blue); }
+.dg .orange-t { fill: var(--p-orange); }
+.dg .gray-t { fill: var(--p-gray); }
+.dg .purple-t { fill: var(--p-purple); }
+.dg .bar-t { font-weight: 500; }
+.dg .tag { fill: var(--p-ink); }
+.dg .tag-t { fill: #fff; font-weight: 500; letter-spacing: 0.02em; }
+.dg .brk { fill: none; stroke: var(--p-gray); stroke-width: 1; }
+.dg .brk-t { fill: var(--p-gray); }
+
+/* Regions, tiles and boxes */
+.dg .region { fill: color-mix(in srgb, var(--ink) 2%, transparent); stroke: var(--line); stroke-width: 1; }
+.dg .bar { fill: #fff; fill-opacity: 0.9; stroke: var(--p-blue); stroke-width: 1.6; }
+.dg .bar.drift { stroke: var(--p-gray); fill-opacity: 1; }
+.dg .tile { fill: none; stroke-width: 2; }
+.dg .tile.clean { stroke: var(--p-blue); }
+.dg .tile.noisy { stroke: var(--p-orange); }
+.dg .tile.out { stroke: var(--p-ink); }
+.dg .tile.gray { stroke: var(--p-gray); stroke-width: 1.4; }
+.dg .tile.blue { stroke: var(--p-blue); }
+.dg .tile.orange { stroke: var(--p-orange); }
+.dg .tl { stroke-width: 1.6; }
+.dg .tl.blue { fill: var(--p-blue-fill); stroke: var(--p-blue); }
+.dg .tl.orange { fill: var(--p-orange-fill); stroke: var(--p-orange); }
+.dg .tl.gray { fill: #f2f3f4; stroke: var(--p-gray); }
+.dg .tl.ink { fill: #fff; stroke: var(--p-ink); }
+.dg .box { fill: #fff; stroke-width: 1.6; }
+.dg .box.ink { stroke: var(--p-ink); }
+.dg .box.blue { stroke: var(--p-blue); }
+.dg .box.orange { stroke: var(--p-orange); }
+.dg .ln { fill: none; stroke-width: 2.4; stroke-linecap: round; }
+.dg .ln.gray { stroke: var(--p-gray); }
+.dg .target { fill: #fff; stroke: var(--p-ink); stroke-width: 1.6; }
+.dg .bandcap { fill: #f6dfcc; fill-opacity: 0.65; stroke: #e9c9b0; stroke-width: 0.8; }
+
+/* Teacher trajectory in (a): a thin curve with a dot per small step */
+.dg .traj { fill: none; stroke: var(--p-blue); stroke-width: 1.4; opacity: 0.7; }
+.dg .pt-traj { fill: var(--p-blue); opacity: 0.8; }
+
+/* Points (export_antidrift_panels.py: dot diameter 9 pt, hollow 6.5 pt) */
+.dg .pt-gt { fill: var(--p-gt); }
+.dg .pt-roll { fill: var(--p-gray); }
+.dg .pt-blue { fill: var(--p-blue); }
+.dg .pt-orange { fill: var(--p-orange); }
+.dg .pt-ink { fill: var(--p-ink); }
+.dg .pt-hollow { fill: #fff; stroke: var(--p-gray); stroke-width: 1.8; }
+.dg .pt-hollow.blue { stroke: var(--p-blue); }
+.dg .pt-hollow.purple { stroke: var(--p-purple); }
+
+/* Arrows: the group's color drives shaft and head */
+.dg .ar { color: var(--p-ink); }
+.dg .ar.gray { color: var(--p-gray); }
+.dg .ar.blue { color: var(--p-blue); }
+.dg .ar.orange { color: var(--p-orange); }
+.dg .ar.purple { color: var(--p-purple); }
+.dg .shaft { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.dg .ar.thin .shaft { stroke-width: 1.5; }
+.dg .shaft.dash { stroke-dasharray: 6 5; }
+.dg .shaft.dot { stroke-width: 1.8; stroke-dasharray: 0.1 5; }
+.dg .head { fill: currentColor; }
+
+/* Background figure: frame labels, and the phase timeline of js/diagrams.js (playPhases) */
+.dg .tag-bg { fill: #fff; fill-opacity: 0.85; stroke: none; }
+.dg [data-ph] { transition: opacity 0.3s ease; }
+.dg .playing [data-ph]:not(.shown) { opacity: 0.07; }
+.dg .pd { opacity: 0; transition: opacity 0.2s ease; pointer-events: none; }
+.dg .pd.go { opacity: 1; }
+.dg .pd.go .dots { animation: dgdots 0.55s linear infinite; }
+.dg .playing [data-ph]:not(.shown) .draw { stroke-dashoffset: var(--len); transition: none; }
+.dg .playing [data-ph]:not(.shown) .head { opacity: 0; transition: none; }
+
+/* Step states (data-st set by js/stepfig.js) */
+.dg [data-st] { transition: opacity 0.3s ease; }
+.dg [data-st="dim"] { opacity: 0.22; }
+.dg [data-st="off"] { opacity: 0; visibility: hidden; transition: opacity 0.2s ease, visibility 0s linear 0.2s; }
+/* Shafts stop under their head (--len) and draw on along the path when their part comes in, from --d for --dr; the head
+ * follows. Dashed and dotted shafts draw on through a mask path (.mk). Parts in .lt fade in at --d. */
+.dg .draw { stroke-dasharray: var(--len) 100000; stroke-dashoffset: 0; transition: stroke-dashoffset var(--dr, 0.5s) ease-out var(--d, 0.1s); }
+.dg .mk { fill: none; stroke: #fff; stroke-width: 10; stroke-linecap: butt; }
+.dg [data-st="off"] .draw { stroke-dashoffset: var(--len); transition: none; }
+.dg .head { transition: opacity 0.15s ease calc(var(--d, 0.1s) + var(--dr, 0.5s) * 0.85); }
+.dg [data-st="off"] .head { opacity: 0; transition: none; }
+.dg .lt { transition: opacity 0.3s ease var(--d, 0s); }
+.dg [data-st="off"] .lt { opacity: 0; transition: none; }
+.dg.overview .draw, .dg.overview .head, .dg.overview .lt { transition: none; }
+
+/* Moving dots along the active paths */
+.dg .flow { opacity: 0; transition: opacity 0.25s ease; pointer-events: none; }
+.dg .flow.run { opacity: 1; transition-delay: var(--fd, 0s); }
+.dg.overview .flow.run { transition-delay: 0s; }
+.dg .dots { fill: none; stroke: var(--fig-accent); stroke-width: 3.6; stroke-linecap: round; stroke-dasharray: 0.1 16; }
+.dg .dots.halo { stroke: var(--flow-halo); stroke-width: 7; }
+.dg .flow.run .dots { animation: dgdots 0.55s linear infinite; }
+@keyframes dgdots { to { stroke-dashoffset: -16.1; } }
+/* Dots inside the scaled paper drawing (motion figure, scale 1.5) */
+.dg .sc .dots { stroke-width: 2.4; stroke-dasharray: 0.1 10.7; }
+.dg .sc .dots.halo { stroke-width: 4.7; }
+.dg .sc .flow.run .dots { animation-name: dgdots-sc; }
+@keyframes dgdots-sc { to { stroke-dashoffset: -10.8; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .dg [data-st], .dg .draw, .dg .head, .dg .lt { transition: none !important; }
+  .dg .flow { display: none; }
+}
+
+/* FlowMap vs. DMD figure: noise-level guides, densities and the regression arrow */
+.dg .guide { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
+.dg .dens { stroke-width: 1.6; }
+.dg .dens.blue { fill: var(--p-blue-fill); stroke: var(--p-blue); }
+.dg .dens.orange { fill: var(--p-orange-fill); fill-opacity: 0.85; stroke: var(--p-orange); }
+.dg .ar.red { color: #c0392b; }
+.dg .red-t { fill: #c0392b; }
+
+/* Motion-aware guidance figure: chart lines and their end values (colors of the paper's curvature figure) */
+.dg .tk { font-family: var(--mono); fill: var(--faint); }
+.dg .cv-ln { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.dg .cv-ln.cfg { stroke: #8a94a6; }
+.dg .cv-ln.slg { stroke: #6b4fa8; }
+.dg .cv-ln.ours { stroke: var(--accent); stroke-width: 3; }
+.dg .cv-end { font-family: var(--mono); font-weight: 500; }
+.dg .cv-end.cfg { fill: #6f7a8c; }
+.dg .cv-end.slg { fill: #6b4fa8; }
+.dg .cv-end.ours { fill: var(--accent); }
+.dg .overlay { fill: #fff; stroke: var(--line); stroke-width: 1; }
+.dg .pt-ink { fill: #8a94a6; }
+
+/* FlowMap distillation vs. DMD (js/diagrams.js fmdmd): the Pi2-Flow principle figure's strokes, in the paper's colors. */
+#fig-fmdmd .dg { max-width: 640px; margin: 0 auto; }
+@media (max-width: 900px) { #fig-fmdmd .dg { min-width: 640px; } }
+.dg .fm-title { font-weight: 600; }
+.dg .fm-mono { font-family: var(--mono); fill: var(--faint); }
+.dg .fm-lbl { font-family: var(--sans); font-weight: 500; }
+.dg .fm-ax { fill: none; stroke: var(--muted); stroke-width: 1.2; }
+.dg .fm-axh { fill: var(--muted); }
+.dg .fm-traj { fill: none; stroke: var(--p-blue); stroke-opacity: 0.32; stroke-width: 1; }
+.dg .fm-teach { fill: none; stroke: var(--p-blue); stroke-width: 2.4; stroke-linecap: round; }
+.dg .fm-stu { fill: none; stroke: var(--p-orange); stroke-width: 2.4; stroke-dasharray: 6 4; stroke-linecap: round; }
+.dg .fm-stu.solid { stroke-dasharray: none; }
+.dg .fm-pt-s { fill: var(--p-orange); stroke: #fff; stroke-width: 1.5; }
+.dg .fm-pt-ink { fill: var(--p-ink); stroke: #fff; stroke-width: 1.5; }
+.dg .fm-dens-t { fill: var(--p-blue); fill-opacity: 0.18; stroke: var(--p-blue); stroke-opacity: 0.5; stroke-width: 1; }
+.dg .fm-dens-s { fill: var(--p-orange); fill-opacity: 0.12; stroke: var(--p-orange); stroke-width: 2.2; stroke-linejoin: round; }
+.dg .fm-sw-s { fill: var(--p-orange); fill-opacity: 0.12; stroke: var(--p-orange); stroke-width: 2; }
+.dg .fm-big { fill: none; stroke: var(--p-orange); stroke-width: 6; stroke-linecap: round; }
+.dg .fm-bigh { fill: var(--p-orange); }
+.dg .fm-noise { fill: var(--p-gray); fill-opacity: 0.16; stroke: var(--p-gray); stroke-opacity: 0.6; stroke-width: 1; }
+.dg .fm-base { fill: none; stroke: var(--muted); stroke-width: 1; }
+.dg .fm-guide { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 3; }
+.dg .fm-id { fill: #f3c9a6; fill-opacity: 0.7; stroke: none; }
+.dg .fm-dens-s { fill-opacity: 0.16; }
+.dg .fm-dens-s { fill: none; stroke-width: 2.4; }
+.dg .fm-pt-t { fill: #fff; stroke: var(--p-blue); stroke-width: 2; }
+.dg .fm-dens-s { fill: var(--p-orange); fill-opacity: 0.22; stroke: var(--p-orange); stroke-width: 1.3; }
+.dg .fm-id { fill: rgb(228, 140, 88); fill-opacity: 0.4; }
+.dg .fm-jump { fill: none; stroke: var(--p-orange); stroke-width: 1.6; stroke-linecap: round; }
+.dg .fm-jumph { fill: var(--p-orange); }
+/* Background figure: a generated chunk slides from the teacher's context row back down to the student's input. */
+.dg .slide { transition: transform calc(var(--dr, 0.6s) * 1.1) cubic-bezier(0.45, 0, 0.3, 1); }
+.dg .playing [data-ph]:not(.shown) .slide { transform: translateY(var(--dy)); transition: none; }
+@media (prefers-reduced-motion: reduce) { .dg .slide { transition: none; } }
+.dg [data-ph].gone { opacity: 0 !important; transition: opacity 0.25s ease; }
+.dg .mo-band { stroke: none; opacity: 0.09; }
+.dg .mo-band.blue { fill: var(--p-blue); }
+.dg .mo-band.orange { fill: var(--p-orange); }
+.dg .crop-src { fill: none; stroke-width: 1.2; stroke-dasharray: 3 2; }
+.dg .crop-src.blue { stroke: var(--p-blue); }
+.dg .crop-src.orange { stroke: none; }
+.dg .lip-vh { fill: var(--p-blue); }
+.lip-fig { margin-top: var(--sp-2); }
+.lip-fig .dg { display: block; max-width: 640px; margin: 0 auto; }
+@media (max-width: 900px) { .lip-fig .dg { min-width: 640px; } }
+.dg .lip-ghost { opacity: 0.3; }
+.dg .patch-grid { fill: none; stroke: #fff; stroke-opacity: 0.45; stroke-width: 0.6; }
+.dg .patch { fill: none; stroke-width: 2.2; }
+.dg .patch.blue { stroke: var(--p-blue); }
+.dg .patch.orange { stroke: var(--p-orange); }
+.dg .patch-link { fill: none; stroke-width: 1.2; stroke-dasharray: 3 3; opacity: 0.8; }
+.dg .patch-link.blue { stroke: var(--p-blue); }
+.dg .patch-link.orange { stroke: var(--p-orange); }
